@@ -45,53 +45,50 @@
 import torch
 import cv2
 
-# 모델 로드
+# Model
 model = torch.hub.load("ultralytics/yolov5", "yolov5m")
 
-# 카메라 열기
+# Video capture
 cap = cv2.VideoCapture(0)
 
-if not cap.isOpened():
-    print("Error: 카메라를 열 수 없습니다.")
-    exit()
-
+# Loop for camera frames
 while True:
-    # 카메라 프레임 읽기
-    ret, frame = cap.read() # frame이 바로 그림을 그릴 '도화지'입니다.
+    # Read frame
+    ret, frame = cap.read()
     if not ret:
-        print("Error: 카메라로부터 프레임을 읽을 수 없습니다.")
+        print("Error: 카메라를 불러올 수 없습니다.")
         break
 
     # 추론 실행 (BGR -> RGB)
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     results = model(rgb_frame)
 
-    # Boudning box 그리기
-    # results.xyxy[0]에 탐지된 객체 정보가 담겨 있습니다.
-    for obj in results.xyxy[0]:
-        # obj 텐서에서 필요한 값들을 추출합니다.
-        x1, y1, x2, y2, conf, cls = obj
+    # Boudning box 그리기 (사용자 코드 유지 및 수정)
+    for i, obj in enumerate(results.xyxy[0]):
+        # 인식결과를 표시하기 위한 좌표를 얻음
+        # obj 텐서에서 x1, y1, x2, y2, 신뢰도, 클래스 ID를 직접 추출
+        x1, y1, x2, y2, conf, cls_id = obj
         
-        # 정수형으로 변환
-        x1, y1, x2, y2, cls = map(int, [x1, y1, x2, y2, cls])
+        # 좌표와 클래스 ID를 정수형으로 변환
+        x1, y1, x2, y2, cls_id = map(int, [x1, y1, x2, y2, cls_id])
+
+        # 인식된 정확도(confidence)와 클래스를 label로 구성
+        label = f"{model.names[cls_id]} {conf:.2f}"
         
-        # 클래스 이름과 신뢰도를 라벨로 만듭니다.
-        label = f"{model.names[cls]} {conf:.2f}"
-        
-        # !! 중요 !!
-        # 'results'가 아닌 원본 이미지 'frame'에 사각형과 텍스트를 그립니다.
-        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2) # 초록색 사각형
+        # [수정 1] OpenCV를 이용해서 'results'가 아닌 'frame'에 사각형과 text를 출력
+        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
         cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+        
+        # 기존 print문 유지
+        print(f"Object {i}: {model.names[cls_id]}")
 
-    # !! 중요 !!
-    # 'results'가 아닌, 그림이 모두 그려진 'frame'을 화면에 표시합니다.
-    cv2.imshow("YOLOv5 Camera Feed", frame)
-
-    # 'ESC' 키를 누르면 루프 종료
+    # [수정 2] 화면 표시: 'results' 객체가 아닌, 그림이 그려진 'frame'을 표시
+    cv2.imshow("test", frame)
+    
+    # 종료를 위한 key 처리
     key = cv2.waitKey(1) & 0xFF
-    if key == 27:
+    if key == 27:  # ESC
         break
 
-# 자원 해제
 cap.release()
 cv2.destroyAllWindows()
